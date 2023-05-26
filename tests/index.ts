@@ -9,7 +9,7 @@ describe("index", (): void => {
 	it("should add a block to the block chain", (): void => {
 		const blockchain = Blockchain.create();
 		const latestBlock = blockchain.latestBlock;
-		const nextBlock = latestBlock.generateNextBlock("Test block!!");
+		const nextBlock = latestBlock.generateNextBlock("Test block!!", blockchain);
 		blockchain.addBlock(nextBlock);
 		assert.ok(true);
 	});
@@ -25,7 +25,7 @@ describe("index", (): void => {
 	it("should throw an error when adding an invalid hash to the block chain", (): void => {
 		const blockchain = Blockchain.create();
 		const latestBlock = blockchain.latestBlock;
-		let nextBlock = latestBlock.generateNextBlock("Test block!!");
+		let nextBlock = latestBlock.generateNextBlock("Test block!!", blockchain);
 		nextBlock = nextBlock.copy({ hash: "invalid hash" });
 		assert.throws((): void => {
 			blockchain.addBlock(nextBlock);
@@ -35,7 +35,7 @@ describe("index", (): void => {
 	it("should throw an error when adding an invalid previous hash to the block chain", (): void => {
 		const blockchain = Blockchain.create();
 		const latestBlock = blockchain.latestBlock;
-		let nextBlock = latestBlock.generateNextBlock("Test block!!");
+		let nextBlock = latestBlock.generateNextBlock("Test block!!", blockchain);
 		nextBlock = nextBlock.copy({ previousHash: "invalid hash" });
 		assert.throws((): void => {
 			blockchain.addBlock(nextBlock);

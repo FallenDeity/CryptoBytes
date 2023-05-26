@@ -11,7 +11,6 @@ export class Logger {
 		const date = new Date();
 		const dateString = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 		this.logger = winston.createLogger({
-			level: "info",
 			format: winston.format.combine(
 				winston.format.colorize(),
 				winston.format.label({ label: `${path.relative(process.cwd(), __filename)} ${this.name}` }),

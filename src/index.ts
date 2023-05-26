@@ -46,7 +46,7 @@ class Client {
 		}
 		this.logger.info(`Minting block with data: ${String(req.body.data)}`);
 		const latestBlock = this.blockchain.latestBlock;
-		const newBlock = latestBlock.generateNextBlock(String(req.body.data));
+		const newBlock = latestBlock.generateNextBlock(String(req.body.data), this.blockchain);
 		this.blockchain.addBlock(newBlock);
 		res.send(JSON.stringify(this.blockchain.latestBlock));
 	}

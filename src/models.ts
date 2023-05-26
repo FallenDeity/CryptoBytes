@@ -5,30 +5,54 @@ import winston from "winston";
 import { InvalidBlockException, InvalidChainException } from "./exceptions";
 import { Logger } from "./logging";
 
+const BLOCK_GENERATION_INTERVAL = Number(process.env.BLOCK_GENERATION_INTERVAL ?? 10);
+const DIFFICULTY_ADJUSTMENT_INTERVAL = Number(process.env.DIFFICULTY_ADJUSTMENT_INTERVAL ?? 10);
+
 export class Block extends Data {
 	public index = 0;
 	public hash = "";
 	public previousHash = "0";
-	public timestamp = new Date().getTime() / 1000;
+	public timestamp = Math.round(new Date().getTime() / 1000);
 	public data = "Hello, World!";
+	public difficulty = 0;
+	public nonce = 0;
 
 	static calculateHash(block: Block): string {
-		return crypto
-			.createHash("sha256")
-			.update(String(block.index) + block.previousHash + String(block.timestamp) + block.data)
-			.digest("hex");
+		const args: (string | number)[] = [
+			block.index,
+			block.previousHash,
+			block.timestamp,
+			block.data,
+			block.difficulty,
+			block.nonce,
+		];
+		return crypto.createHash("sha256").update(args.join()).digest("hex");
 	}
 
-	public generateNextBlock(blockData: string): Block {
-		const nextIndex = this.index + 1;
-		const nextTimestamp = Date.now();
-		const block: Block = Block.create({
-			index: nextIndex,
-			previousHash: this.hash,
-			timestamp: nextTimestamp,
-			data: blockData,
-		});
-		return block.copy({ hash: Block.calculateHash(block) });
+	static matchHashDifficulty(block: Block): boolean {
+		const hashInBinary: string = Block.hexToBinary(block.hash);
+		const requiredPrefix: string = "0".repeat(block.difficulty);
+		return hashInBinary.startsWith(requiredPrefix);
+	}
+
+	static hexToBinary(s: string): string {
+		let result = "";
+		for (const i of s) {
+			const hex = parseInt(i, 16);
+			result += hex.toString(2).padStart(4, "0");
+		}
+		return result;
+	}
+	static findBlock(block: Block): Block {
+		let nonce = 0;
+		// eslint-disable-next-line no-constant-condition,@typescript-eslint/no-unnecessary-condition
+		while (true) {
+			const hash = Block.calculateHash(block.copy({ nonce: nonce }));
+			if (Block.matchHashDifficulty(block.copy({ hash: hash }))) {
+				return block.copy({ hash: hash, nonce: nonce });
+			}
+			nonce++;
+		}
 	}
 
 	static genesisBlock(): Block {
@@ -43,6 +67,31 @@ export class Block extends Data {
 			data: data,
 		});
 		return block.copy({ hash: Block.calculateHash(block) });
+	}
+
+	static isValidTimestamp(newBlock: Block, previousBlock: Block): boolean {
+		return (
+			previousBlock.timestamp - 60 < newBlock.timestamp &&
+			newBlock.timestamp - 60 < Math.round(new Date().getTime() / 1000)
+		);
+	}
+
+	static validHash(block: Block): boolean {
+		return Block.calculateHash(block) === block.hash && Block.matchHashDifficulty(block);
+	}
+
+	public generateNextBlock(blockData: string, chain: Blockchain): Block {
+		const nextIndex = this.index + 1;
+		const difficulty = chain.getDifficulty();
+		let block: Block = Block.create({
+			index: nextIndex,
+			previousHash: this.hash,
+			timestamp: Math.round(new Date().getTime() / 1000),
+			data: blockData,
+			difficulty: difficulty,
+		});
+		block = Block.findBlock(block);
+		return block;
 	}
 }
 
@@ -70,10 +119,14 @@ export class Blockchain extends Data {
 		} else if (previousBlock.hash !== newBlock.previousHash) {
 			this.logger.error(`Invalid previoushash: ${newBlock.previousHash}`);
 			return false;
+		} else if (!Block.isValidTimestamp(newBlock, previousBlock)) {
+			this.logger.error(`Invalid timestamp: ${newBlock.timestamp}`);
+			return false;
+		} else if (!Block.validHash(newBlock)) {
+			this.logger.error(`Invalid hash: ${newBlock.hash}`);
+			return false;
 		} else {
-			const check = Block.calculateHash(newBlock) === newBlock.hash;
-			check || this.logger.error(`Invalid hash: ${newBlock.hash}`);
-			return check;
+			return true;
 		}
 	}
 
@@ -93,7 +146,7 @@ export class Blockchain extends Data {
 	}
 
 	public replaceChain(newBlocks: Blockchain): void {
-		if (this.isValidChain(newBlocks) && newBlocks.blocks.length > this.blocks.length) {
+		if (this.isValidChain(newBlocks) && newBlocks.accumulatedDifficulty > this.accumulatedDifficulty) {
 			this.logger.info(`Received blockchain is valid. Replacing current blockchain with received blockchain`);
 			const newBlocksToAppend = newBlocks.blocks.slice(this.blocks.length);
 			for (const block of newBlocksToAppend) {
@@ -104,7 +157,35 @@ export class Blockchain extends Data {
 		}
 	}
 
-	private get logger(): winston.Logger {
+	public getAdjustedDifficulty(): number {
+		const latestBlock = this.latestBlock;
+		const prevAdjustmentBlock = this.blocks[this.blocks.length - DIFFICULTY_ADJUSTMENT_INTERVAL];
+		const timeExpected = BLOCK_GENERATION_INTERVAL * DIFFICULTY_ADJUSTMENT_INTERVAL;
+		const timeTaken = latestBlock.timestamp - prevAdjustmentBlock.timestamp;
+		this.logger.info(`Time expected: ${timeExpected} seconds, time taken: ${timeTaken} seconds`);
+		if (timeTaken < timeExpected / 2) {
+			return prevAdjustmentBlock.difficulty + 1;
+		} else if (timeTaken > timeExpected * 2) {
+			return prevAdjustmentBlock.difficulty - 1;
+		} else {
+			return prevAdjustmentBlock.difficulty;
+		}
+	}
+
+	public getDifficulty(): number {
+		const latestBlock = this.latestBlock;
+		if (latestBlock.index % DIFFICULTY_ADJUSTMENT_INTERVAL === 0 && latestBlock.index !== 0) {
+			return this.getAdjustedDifficulty();
+		} else {
+			return latestBlock.difficulty;
+		}
+	}
+
+	public get accumulatedDifficulty(): number {
+		return this.blocks.map((block) => Math.pow(2, block.difficulty)).reduce((a, b) => a + b);
+	}
+
+	public get logger(): winston.Logger {
 		return this.logging.logger;
 	}
 }

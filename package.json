@@ -24,6 +24,7 @@
 		"lint:fix",
 		"prettier:fix",
 		"build-production",
+		"compile",
 		"test",
 		"coverage"
 	],
