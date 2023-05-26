@@ -1,8 +1,10 @@
+A naive blockchain implementation in TypeScript.
+
 # Setup
 
 ```bash
-$ git clone https://github.com/FallenDeity/Typescript-Boilerplate
-$ cd Typescript-Boilerplate
+$ git clone https://github.com/FallenDeity/CryptoBytes.git
+$ cd CryptoBytes
 $ npm install
 ```
 

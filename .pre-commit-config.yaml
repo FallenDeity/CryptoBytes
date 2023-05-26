@@ -38,12 +38,6 @@ repos:
             entry: npm run build-production
             language: node
 
-          - id: tsc
-            name: compile
-            pass_filenames: false
-            entry: npm run compile
-            language: node
-
           - id: mocha
             name: test
             pass_filenames: false

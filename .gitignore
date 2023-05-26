@@ -133,3 +133,5 @@ dist
 .vscode
 
 coverage/
+logs/
+.nyc_output/

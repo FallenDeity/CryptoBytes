@@ -2,6 +2,9 @@ import * as path from "path";
 
 module.exports = {
 	target: "node",
+	externals: {
+		express: "commonjs express",
+	},
 	mode: "production",
 	entry: "./src/index.ts",
 	output: {
