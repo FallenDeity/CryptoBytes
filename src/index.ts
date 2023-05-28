@@ -56,10 +56,16 @@ class Client {
 		res.send(JSON.stringify(block));
 	}
 
+	private blockByHash(req: express.Request, res: express.Response): void {
+		const block = this.blockchain.blocks.find((block) => block.hash === req.params.hash);
+		res.send(JSON.stringify(block));
+	}
+
 	private add_routes(): void {
 		this.app.get("/blocks", this.blocks.bind(this));
 		this.app.post("/blocks/mint", this.mintBlock.bind(this));
-		this.app.get("/blocks/block/:index", this.block.bind(this));
+		this.app.get("/blocks/index/:index", this.block.bind(this));
+		this.app.get("/blocks/hash/:hash", this.blockByHash.bind(this));
 	}
 
 	public start(): void {
