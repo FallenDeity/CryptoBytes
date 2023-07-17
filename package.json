@@ -64,6 +64,6 @@
 		"dataclass": "^2.1.1",
 		"dotenv": "^16.0.3",
 		"express": "^4.18.2",
-		"winston": "^3.8.2"
+		"winston": "^3.10.0"
 	}
 }
